@@ -1,6 +1,7 @@
+import { FC } from 'react';
 import { Link } from 'react-router-dom';
 
-export default function Home() {
+const Home: FC = () => {
   return (
     <div className="max-w-[1200px] mx-auto px-8 pt-16 pb-24">
       <h1 className="text-[40px] font-bold text-black mb-3">
@@ -11,9 +12,12 @@ export default function Home() {
       </p>
       <Link
         to="/register"
+        className="inline-block px-5 py-2 bg-[#2563EB] text-white text-base rounded-full hover:bg-[#1D4ED8] transition-colors"
       >
-        <p className="inline-block p-3 bg-blue-500 text-white text-base rounded hover:bg-blue-600 transition-colors">Register Now</p>
+        Register Now
       </Link>
     </div>
   );
-}
+};
+
+export default Home;
