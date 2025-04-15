@@ -12,7 +12,14 @@ const Home: FC = () => {
       </p>
       <Link
         to="/register"
-        className="inline-block px-5 py-2 bg-[#2563EB] text-white text-base rounded-full hover:bg-[#1D4ED8] transition-colors"
+        className="
+          inline-flex px-6 py-3 
+          text-base font-medium text-white 
+          bg-[#2563EB] 
+          rounded-xl
+          hover:bg-[#1D4ED8] 
+          transition-colors duration-200
+        "
       >
         Register Now
       </Link>

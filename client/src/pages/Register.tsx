@@ -44,9 +44,9 @@ const Register: FC = () => {
   const [steps, setSteps] = useState<Step[]>([
     {
       icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="24" height="24" rx="4" fill="currentColor" />
-          <path d="M7 14h10v2H7v-2zm0-6h4v2H7V8z" fill="white" />
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={1.5} />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h10M7 12h10M7 17h10" />
         </svg>
       ),
       title: 'Connect Wallet',
@@ -63,8 +63,19 @@ const Register: FC = () => {
     },
     {
       icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor" />
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 9h.01M15 9h.01M8 13h8m-8 3h8" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 17l-5-5m0 0l-5 5m5-5v12" />
+        </svg>
+      ),
+      title: 'Verify Wallet Uniqueness',
+      status: 'incomplete',
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
         </svg>
       ),
       title: 'Verify Identity',
@@ -72,13 +83,13 @@ const Register: FC = () => {
     },
     {
       icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor" />
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      title: 'Complete Registration',
+      title: 'Verify Income',
       status: 'incomplete',
-    },
+    }
   ]);
 
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -240,6 +251,13 @@ const Register: FC = () => {
     }
   };
 
+  const handleDisconnect = () => {
+    disconnect();
+    updateStepStatus(0, 'incomplete');
+    updateStepStatus(1, 'incomplete');
+    setBalanceError(null);
+  };
+
   // Update the useEffect to include network check
   useEffect(() => {
     if (isConnected && address) {
@@ -325,129 +343,117 @@ const Register: FC = () => {
   );
 
   return (
-    <div className="max-w-[600px] mx-auto px-8 pt-8 pb-24">
-      <h1 className="text-[32px] font-bold mb-3">Register</h1>
-      <p className="text-[#6B7280] text-lg mb-10">
-        Follow the steps below to register as a member of the DAO voting group.
-      </p>
+    <div className="min-h-screen">
+      <div className="max-w-[600px] mx-auto px-8 pt-10 pb-24">
+        <h1 className="text-3xl font-bold text-gray-900 mb-3">Register</h1>
+        <p className="text-gray-600 text-lg mb-12">
+          Follow the steps below to register as a member of the DAO voting group.
+        </p>
 
-      <div className="space-y-3">
-        {steps.map((step, index) => (
-          <div key={step.title} className="p-5 border border-[#E5E7EB] rounded-2xl">
+        <div className="space-y-4">
+          {steps.map((step, index) => (
             <div
-              className="flex items-center justify-between"
+              key={step.title}
+              className={`
+                p-6 bg-white border rounded-xl shadow-sm transition-all duration-200
+                ${step.status === 'complete' ? 'border-green-200 bg-green-50/50' : 'border-gray-200'}
+              `}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-6 h-6 flex items-center justify-center text-black">
-                  {step.icon}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`
+                    w-10 h-10 rounded-full flex items-center justify-center
+                    ${step.status === 'complete' 
+                      ? 'bg-green-100 text-green-600' 
+                      : 'bg-gray-100 text-gray-600'}
+                  `}>
+                    {step.icon}
+                  </div>
+                  <span className="text-base font-medium text-gray-900">
+                    {step.title}
+                  </span>
                 </div>
-                <span className="text-[15px] text-[#111827] font-medium">
-                  {step.title}
-                </span>
+
+                {index === 0 ? (
+                  isConnected ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#059669] bg-[#ECFDF5] px-4 py-1.5 rounded-full font-medium">
+                        Connected
+                      </span>
+                      <button
+                        onClick={handleDisconnect}
+                        className="text-sm text-red-600 hover:text-red-700"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowWalletModal(true)}
+                      className="px-6 py-2 bg-[#2563EB] text-white text-base font-medium rounded-xl hover:bg-[#1D4ED8] transition-colors cursor-pointer"
+                    >
+                      Connect
+                    </button>
+                  )
+                ) : (
+                  <span className={`
+                    px-3 py-1 rounded-full text-sm font-medium
+                    ${step.status === 'complete'
+                      ? 'bg-green-100 text-green-600'
+                      : 'bg-gray-100 text-gray-500'}
+                  `}>
+                    {step.status === 'complete' ? 'Complete' : 'Incomplete'}
+                  </span>
+                )}
               </div>
 
-              {index === 0 ? (
-                isConnected ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#059669] bg-[#ECFDF5] px-4 py-1.5 rounded-full font-medium">
-                      Complete
-                    </span>
-                    <button
-                      onClick={() => disconnect()}
-                      className="text-sm text-red-600 hover:text-red-700"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowWalletModal(true)}
-                    className="px-6 py-3 bg-[#2563EB] text-white text-base font-medium rounded-xl hover:bg-[#1D4ED8] transition-colors"
-                  >
-                    Connect
-                  </button>
-                )
-              ) : (
-                <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${step.status === 'complete'
-                  ? 'bg-[#ECFDF5] text-[#059669]'
-                  : 'bg-[#F3F4F6] text-[#6B7280]'
-                  }`}>
-                  {step.status === 'complete' ? 'Complete' : 'Incomplete'}
-                </span>
-              )}
-
-            </div>
               {index === 1 && balanceError && (
-                <div className="mt-2 text-sm text-red-600">
-                  {balanceError}
+                <div className="mt-4 p-4 bg-red-50 rounded-lg flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-red-600">{balanceError}</span>
                 </div>
               )}
-          </div>
-        ))}
-      </div>
+            </div>
+          ))}
+        </div>
 
-      <div className="mt-8">
         <button
           onClick={handleRegister}
-          disabled={!isConnected || steps[1].status !== 'complete' || steps[3].status === 'complete' || isRegistering}
+          disabled={!isConnected || steps[1].status !== 'complete' || isRegistering}
           className={`
-            w-full px-6 py-4 
-            text-lg font-semibold
-            rounded-xl shadow-md 
-            transition-all duration-200
-            ${(!isConnected || steps[1].status !== 'complete' || steps[3].status === 'complete')
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            mt-8 w-full px-6 py-4 rounded-xl text-base font-medium
+            transition-all duration-200 shadow-sm
+            ${(!isConnected || steps[1].status !== 'complete')
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : isRegistering
-                ? 'bg-blue-400 text-white cursor-not-allowed'
-                : 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:bg-[#1E40AF]'
+                ? 'bg-blue-400 text-white cursor-wait'
+                : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md active:bg-blue-800'
             }
           `}
         >
           {isRegistering ? (
-            <div className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <div className="flex items-center justify-center gap-3">
+              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               Registering...
             </div>
-          ) : steps[3].status === 'complete' ? (
-            'Registration Complete'
-          ) : !isConnected ? (
-            'Connect Wallet to Register'
-          ) : steps[1].status !== 'complete' ? (
-            'Verify LABR Balance to Register'
-          ) : (
-            'Register for The People'
-          )}
+          ) : 'Register for The People'}
         </button>
 
+        {/* Helper text */}
         {!isRegistering && !steps[3].status === 'complete' && (
-          <div className="mt-2 text-sm text-center text-gray-500">
-            {!isConnected ? (
-              'Please connect your wallet first'
-            ) : steps[1].status !== 'complete' ? (
-              'You need to have sufficient LABR balance to register'
-            ) : null}
-          </div>
-        )}
-
-        {registrationError && (
-          <div className="mt-4 p-4 bg-red-50 rounded-lg text-red-600 text-sm flex items-start gap-2">
-            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{registrationError}</span>
-          </div>
-        )}
-
-        {steps[3].status === 'complete' && (
-          <div className="mt-4 p-4 bg-green-50 rounded-lg text-green-600 text-sm flex items-start gap-2">
-            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Successfully registered for The People voting group!</span>
-          </div>
+          <p className="mt-3 text-sm text-center text-gray-500">
+            {!isConnected 
+              ? 'Connect your wallet to begin registration'
+              : steps[1].status !== 'complete'
+                ? 'You need at least 1.0 LABR to register'
+                : null
+            }
+          </p>
         )}
       </div>
 
