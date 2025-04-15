@@ -6,7 +6,10 @@ const config = {
     web3: {
         providerUrl: process.env.WEB3_PROVIDER_URL || 'https://polygon-rpc.com',
         labrTokenAddress: process.env.LABR_TOKEN_ADDRESS,
-        minimumLabrBalance: '1000000000000000000' // 1 LABR in wei
+        daoAddress: process.env.DAO_ADDRESS,
+        adminPrivateKey: process.env.ADMIN_PRIVATE_KEY,
+        minimumLabrBalance: '1',
+        labrvTokenAddress: process.env.LABRV_TOKEN_ADDRESS,
     },
     cors: {
         origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
@@ -25,11 +28,51 @@ const LABR_TOKEN_ABI = [
     }
 ];
 
+// DAO Contract ABI
+const DAO_ABI = [
+    {
+        "constant": false,
+        "inputs": [
+            {"name": "groupName", "type": "string"},
+            {"name": "member", "type": "address"}
+        ],
+        "name": "addMemberToGroup",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [
+            {"name": "groupName", "type": "string"},
+            {"name": "member", "type": "address"}
+        ],
+        "name": "isMemberOfGroup",
+        "outputs": [{"name": "", "type": "bool"}],
+        "type": "function"
+    }
+];
+
+// LABRV Token ABI
+const LABRV_TOKEN_ABI = [
+    {
+        "constant": false,
+        "inputs": [
+            {"name": "to", "type": "address"},
+            {"name": "amount", "type": "uint256"}
+        ],
+        "name": "mint",
+        "outputs": [],
+        "type": "function"
+    }
+];
+
 // Initialize Web3
 const web3 = new Web3(config.web3.providerUrl);
 
 module.exports = {
     config,
     web3,
-    LABR_TOKEN_ABI
+    LABR_TOKEN_ABI,
+    DAO_ABI,
+    LABRV_TOKEN_ABI
 };

@@ -83,6 +83,8 @@ const Register: FC = () => {
 
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState<boolean>(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   // Handlers
   const updateStepStatus = useCallback((index: number, status: StepStatus): void => {
@@ -196,6 +198,48 @@ const Register: FC = () => {
     }
   };
 
+  const handleRegister = async () => {
+    try {
+      setIsRegistering(true);
+      setRegistrationError(null);
+
+      await checkAndSwitchNetwork();
+
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+
+      const message = `Register for The People voting group\nWallet: ${address}\nTimestamp: ${Date.now()}`;
+      const signature = await signer.signMessage(message);
+
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          address,
+          signature,
+          message,
+          // group: 'The People'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      updateStepStatus(3, 'complete');
+
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setRegistrationError(error.message || 'Failed to complete registration. Please try again.');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
   // Update the useEffect to include network check
   useEffect(() => {
     if (isConnected && address) {
@@ -281,7 +325,7 @@ const Register: FC = () => {
   );
 
   return (
-    <div className="max-w-[600px] mx-auto px-8 pt-16 pb-24">
+    <div className="max-w-[600px] mx-auto px-8 pt-8 pb-24">
       <h1 className="text-[32px] font-bold mb-3">Register</h1>
       <p className="text-[#6B7280] text-lg mb-10">
         Follow the steps below to register as a member of the DAO voting group.
@@ -340,6 +384,71 @@ const Register: FC = () => {
               )}
           </div>
         ))}
+      </div>
+
+      <div className="mt-8">
+        <button
+          onClick={handleRegister}
+          disabled={!isConnected || steps[1].status !== 'complete' || steps[3].status === 'complete' || isRegistering}
+          className={`
+            w-full px-6 py-4 
+            text-lg font-semibold
+            rounded-xl shadow-md 
+            transition-all duration-200
+            ${(!isConnected || steps[1].status !== 'complete' || steps[3].status === 'complete')
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : isRegistering
+                ? 'bg-blue-400 text-white cursor-not-allowed'
+                : 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:bg-[#1E40AF]'
+            }
+          `}
+        >
+          {isRegistering ? (
+            <div className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Registering...
+            </div>
+          ) : steps[3].status === 'complete' ? (
+            'Registration Complete'
+          ) : !isConnected ? (
+            'Connect Wallet to Register'
+          ) : steps[1].status !== 'complete' ? (
+            'Verify LABR Balance to Register'
+          ) : (
+            'Register for The People'
+          )}
+        </button>
+
+        {!isRegistering && !steps[3].status === 'complete' && (
+          <div className="mt-2 text-sm text-center text-gray-500">
+            {!isConnected ? (
+              'Please connect your wallet first'
+            ) : steps[1].status !== 'complete' ? (
+              'You need to have sufficient LABR balance to register'
+            ) : null}
+          </div>
+        )}
+
+        {registrationError && (
+          <div className="mt-4 p-4 bg-red-50 rounded-lg text-red-600 text-sm flex items-start gap-2">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{registrationError}</span>
+          </div>
+        )}
+
+        {steps[3].status === 'complete' && (
+          <div className="mt-4 p-4 bg-green-50 rounded-lg text-green-600 text-sm flex items-start gap-2">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>Successfully registered for The People voting group!</span>
+          </div>
+        )}
       </div>
 
       {showWalletModal && <WalletModal />}
