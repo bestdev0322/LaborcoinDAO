@@ -5,6 +5,9 @@ import { config } from './config/wagmi';
 import MainLayout from './layouts/MainLayout'
 import Home from './pages/Home'
 import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
+import Proposals from './pages/Proposals'
+import Wallet from './pages/Wallet'
 import './App.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -20,6 +23,9 @@ const App: FC = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/proposals" element={<Proposals />} />
+              <Route path="/wallet" element={<Wallet />} />
             </Routes>
           </MainLayout>
         </Router>
