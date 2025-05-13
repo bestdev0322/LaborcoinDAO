@@ -1,8 +1,42 @@
-require('dotenv').config();
-const { Web3 } = require('web3');
+import 'dotenv/config';
+import { Web3 } from 'web3';
 
-const config = {
-    port: process.env.PORT || 5000,
+interface Web3Config {
+    providerUrl: string;
+    labrTokenAddress?: string;
+    daoAddress?: string;
+    adminPrivateKey?: string;
+    minimumLabrBalance: string;
+    labrvTokenAddress?: string;
+}
+
+interface CorsConfig {
+    origin: string;
+    credentials: boolean;
+}
+
+interface Config {
+    port: number;
+    web3: Web3Config;
+    cors: CorsConfig;
+}
+
+interface ContractABI {
+    constant: boolean;
+    inputs: Array<{
+        name: string;
+        type: string;
+    }>;
+    name: string;
+    outputs: Array<{
+        name: string;
+        type: string;
+    }>;
+    type: string;
+}
+
+const config: Config = {
+    port: Number(process.env.PORT) || 5000,
     web3: {
         providerUrl: process.env.WEB3_PROVIDER_URL || 'https://polygon-rpc.com',
         labrTokenAddress: process.env.LABR_TOKEN_ADDRESS,
@@ -18,7 +52,7 @@ const config = {
 };
 
 // LABR Token ABI
-const LABR_TOKEN_ABI = [
+const LABR_TOKEN_ABI: ContractABI[] = [
     {
         "constant": true,
         "inputs": [{"name": "_owner", "type": "address"}],
@@ -29,7 +63,7 @@ const LABR_TOKEN_ABI = [
 ];
 
 // DAO Contract ABI
-const DAO_ABI = [
+const DAO_ABI: ContractABI[] = [
     {
         "constant": false,
         "inputs": [
@@ -53,7 +87,7 @@ const DAO_ABI = [
 ];
 
 // LABRV Token ABI
-const LABRV_TOKEN_ABI = [
+const LABRV_TOKEN_ABI: ContractABI[] = [
     {
         "constant": false,
         "inputs": [
@@ -69,10 +103,10 @@ const LABRV_TOKEN_ABI = [
 // Initialize Web3
 const web3 = new Web3(config.web3.providerUrl);
 
-module.exports = {
+export {
     config,
     web3,
     LABR_TOKEN_ABI,
     DAO_ABI,
     LABRV_TOKEN_ABI
-};
+}; 

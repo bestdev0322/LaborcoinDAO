@@ -1,7 +1,45 @@
-const { web3, config, LABR_TOKEN_ABI, DAO_ABI, LABRV_TOKEN_ABI } = require('../config');
-const { verifySignature } = require('../utils/crypto');
+import { Request, Response } from 'express';
+import { web3, config, LABR_TOKEN_ABI, DAO_ABI, LABRV_TOKEN_ABI } from '../config';
+import { verifySignature } from '../utils/crypto';
+import { Contract } from 'web3-eth-contract';
+import { AbiItem } from 'web3-utils';
 
-const verifyWallet = async (req, res) => {
+interface VerifyWalletRequest {
+    walletAddress: string;
+}
+
+interface RegisterRequest {
+    address: string;
+    signature: string;
+    message: string;
+}
+
+// Define the contract method types
+interface TokenContractMethods {
+    balanceOf(address: string): {
+        call(): Promise<string>;
+    };
+}
+
+interface DaoContractMethods {
+    addMemberToGroup(groupName: string, member: string): {
+        encodeABI(): string;
+        estimateGas(options: { from: string }): Promise<number>;
+    };
+}
+
+interface LabrvContractMethods {
+    mint(to: string, amount: string): {
+        encodeABI(): string;
+        estimateGas(options: { from: string }): Promise<number>;
+    };
+}
+
+type TokenContract = Contract<AbiItem[]> & { methods: TokenContractMethods };
+type DaoContract = Contract<AbiItem[]> & { methods: DaoContractMethods };
+type LabrvContract = Contract<AbiItem[]> & { methods: LabrvContractMethods };
+
+const verifyWallet = async (req: Request<{}, {}, VerifyWalletRequest>, res: Response) => {
     try {
         const { walletAddress } = req.body;
 
@@ -10,7 +48,7 @@ const verifyWallet = async (req, res) => {
         }
 
         // Create token contract instance
-        const tokenContract = new web3.eth.Contract(LABR_TOKEN_ABI, config.web3.labrTokenAddress);
+        const tokenContract = new web3.eth.Contract(LABR_TOKEN_ABI as AbiItem[], config.web3.labrTokenAddress!) as unknown as TokenContract;
 
         // Check LABR balance
         const balance = await tokenContract.methods.balanceOf(walletAddress).call();
@@ -34,7 +72,7 @@ const verifyWallet = async (req, res) => {
     }
 };
 
-const register = async (req, res) => {
+const register = async (req: Request<{}, {}, RegisterRequest>, res: Response) => {
     try {
         const { address, signature, message } = req.body;
 
@@ -50,14 +88,14 @@ const register = async (req, res) => {
         }
 
         // Create DAO contract instance
-        const daoContract = new web3.eth.Contract(DAO_ABI, config.web3.daoAddress);
+        const daoContract = new web3.eth.Contract(DAO_ABI as AbiItem[], config.web3.daoAddress!) as unknown as DaoContract;
 
         // Create LABRV token contract instance
-        const labrvContract = new web3.eth.Contract(LABRV_TOKEN_ABI, config.web3.labrvTokenAddress);
+        const labrvContract = new web3.eth.Contract(LABRV_TOKEN_ABI as AbiItem[], config.web3.labrvTokenAddress!) as unknown as LabrvContract;
 
         try {
             // Get the admin wallet from config
-            const adminWallet = web3.eth.accounts.privateKeyToAccount(config.web3.adminPrivateKey);
+            const adminWallet = web3.eth.accounts.privateKeyToAccount(config.web3.adminPrivateKey!);
 
             // 1. Add member to 'The People' voting group
             const addMemberTx = daoContract.methods.addMemberToGroup('The People', address);
@@ -67,7 +105,7 @@ const register = async (req, res) => {
 
             // Sign and send the transaction
             const signedAddMemberTx = await adminWallet.signTransaction({
-                to: config.web3.daoAddress,
+                to: config.web3.daoAddress!,
                 data: addMemberTx.encodeABI(),
                 gas: addMemberGas,
                 gasPrice: await web3.eth.getGasPrice(),
@@ -89,7 +127,7 @@ const register = async (req, res) => {
 
             // Sign and send the transaction
             const signedMintTx = await adminWallet.signTransaction({
-                to: config.web3.labrvTokenAddress,
+                to: config.web3.labrvTokenAddress!,
                 data: mintTx.encodeABI(),
                 gas: mintGas,
                 gasPrice: await web3.eth.getGasPrice(),
@@ -121,7 +159,7 @@ const register = async (req, res) => {
     }
 };
 
-module.exports = {
+export {
     verifyWallet,
     register
-};
+}; 
