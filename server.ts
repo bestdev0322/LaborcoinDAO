@@ -4,8 +4,12 @@ import cors from 'cors';
 import morgan from 'morgan';
 import { config } from './config';
 import registrationRoutes from './routes/registrationRoutes';
+import connectDB from './config/database';
 
 const app: Application = express();
+
+// Connect to MongoDB
+connectDB();
 
 // Middleware
 app.use(cors(config.cors));
@@ -30,4 +34,4 @@ app.use((err: ErrorResponse, req: Request, res: Response, next: NextFunction) =>
 
 app.listen(config.port, () => {
     console.log(`Server running on port ${config.port}`);
-}); 
+});

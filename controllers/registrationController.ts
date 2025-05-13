@@ -3,16 +3,39 @@ import { web3, config, LABR_TOKEN_ABI, DAO_ABI, LABRV_TOKEN_ABI } from '../confi
 import { verifySignature } from '../utils/crypto';
 import { Contract } from 'web3-eth-contract';
 import { AbiItem } from 'web3-utils';
+import {
+    Configuration,
+    PlaidApi,
+    PlaidEnvironments,
+    CountryCode,
+    Products,
+    // IncomeVerificationCreateRequest,
+    // IncomeVerificationCreateResponse,
+    // VerificationStatus
+} from 'plaid';
+import { User, IUser } from '../models/User';
 
-interface VerifyWalletRequest {
-    walletAddress: string;
-}
+// Initialize Plaid client
+const plaidConfig = new Configuration({
+    basePath: PlaidEnvironments.sandbox,
+    baseOptions: {
+        headers: {
+            'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
+            'PLAID-SECRET': process.env.PLAID_SANDBOX_SECRET,
+        },
+    },
+});
 
-interface RegisterRequest {
-    address: string;
-    signature: string;
-    message: string;
-}
+const plaidClient = new PlaidApi(plaidConfig);
+
+// Plaid configuration
+const PLAID_PRODUCTS = [Products.IncomeVerification];
+const PLAID_COUNTRY_CODES = [CountryCode.Us];
+const PLAID_LANGUAGE = 'en';
+const INCOME_THRESHOLDS = {
+    MINIMUM_ANNUAL_INCOME: 30000,
+    MINIMUM_MONTHLY_INCOME: 2500,
+};
 
 // Define the contract method types
 interface TokenContractMethods {
@@ -39,6 +62,26 @@ type TokenContract = Contract<AbiItem[]> & { methods: TokenContractMethods };
 type DaoContract = Contract<AbiItem[]> & { methods: DaoContractMethods };
 type LabrvContract = Contract<AbiItem[]> & { methods: LabrvContractMethods };
 
+// Request interfaces
+interface VerifyWalletRequest {
+    walletAddress: string;
+}
+
+interface RegisterRequest {
+    address: string;
+    signature: string;
+    message: string;
+}
+
+interface InitiateIncomeVerificationRequest {
+    walletAddress: string;
+}
+
+interface VerifyIncomeRequest {
+    walletAddress: string;
+    publicToken: string;
+}
+
 const verifyWallet = async (req: Request<{}, {}, VerifyWalletRequest>, res: Response) => {
     try {
         const { walletAddress } = req.body;
@@ -61,6 +104,17 @@ const verifyWallet = async (req: Request<{}, {}, VerifyWalletRequest>, res: Resp
             });
         }
 
+        // Create or update user record
+        await User.findOneAndUpdate(
+            { walletAddress: walletAddress.toLowerCase() },
+            {
+                walletAddress: walletAddress.toLowerCase(),
+                labrBalance: balance,
+                $setOnInsert: { isRegistered: false }
+            },
+            { upsert: true, new: true }
+        );
+
         res.json({
             success: true,
             walletAddress,
@@ -69,6 +123,178 @@ const verifyWallet = async (req: Request<{}, {}, VerifyWalletRequest>, res: Resp
     } catch (error) {
         console.error('Wallet verification error:', error);
         res.status(500).json({ error: 'Failed to verify wallet' });
+    }
+};
+
+const initiateIncomeVerification = async (req: Request<{}, {}, InitiateIncomeVerificationRequest>, res: Response) => {
+    try {
+        const { walletAddress } = req.body;
+
+        if (!web3.utils.isAddress(walletAddress)) {
+            return res.status(400).json({ error: 'Invalid wallet address' });
+        }
+
+        // Check if user exists and has sufficient LABR balance
+        const user = await User.findOne({ walletAddress: walletAddress.toLowerCase() });
+        if (!user) {
+            return res.status(400).json({ error: 'Wallet not verified' });
+        }
+
+        // Check if user already has a completed verification
+        if (user.incomeVerification?.status === 'completed') {
+            return res.json({
+                success: true,
+                status: 'already_verified',
+                verificationId: user.incomeVerification.verificationId
+            });
+        }
+
+        // Create Plaid link token
+        const request = {
+            user: {
+                client_user_id: walletAddress,
+            },
+            client_name: 'Laborcoin DAO',
+            products: PLAID_PRODUCTS,
+            country_codes: PLAID_COUNTRY_CODES,
+            language: PLAID_LANGUAGE,
+            webhook: `${process.env.API_URL}/api/register/income-webhook`,
+        };
+
+        const response = await plaidClient.linkTokenCreate(request);
+
+        // Update user with verification initiation
+        await User.findOneAndUpdate(
+            { walletAddress: walletAddress.toLowerCase() },
+            {
+                'incomeVerification.verificationId': response.data.link_token,
+                'incomeVerification.status': 'pending'
+            }
+        );
+
+        res.json({
+            success: true,
+            linkToken: response.data.link_token,
+            status: 'pending'
+        });
+    } catch (error) {
+        console.error('Income verification initiation error:', error);
+        res.status(500).json({ error: 'Failed to initiate income verification' });
+    }
+};
+
+const verifyIncome = async (req: Request<{}, {}, VerifyIncomeRequest>, res: Response) => {
+    try {
+        const { walletAddress, publicToken } = req.body;
+
+        if (!web3.utils.isAddress(walletAddress)) {
+            return res.status(400).json({ error: 'Invalid wallet address' });
+        }
+
+        // Exchange public token for access token
+        const exchangeResponse = await plaidClient.itemPublicTokenExchange({
+            public_token: publicToken,
+        });
+
+        const accessToken = exchangeResponse.data.access_token;
+        const itemId = exchangeResponse.data.item_id;
+
+        // Get income verification data
+        const incomeRequest = {
+            access_token: accessToken
+        } as any;
+
+        const incomeResponse = await plaidClient.incomeVerificationCreate(incomeRequest);
+        const verificationId = incomeResponse.data.income_verification_id;
+
+        // Update user with verification data
+        await User.findOneAndUpdate(
+            { walletAddress: walletAddress.toLowerCase() },
+            {
+                'incomeVerification.verificationId': verificationId,
+                'incomeVerification.status': 'pending',
+                'incomeVerification.accessToken': accessToken,
+                'incomeVerification.itemId': itemId
+            }
+        );
+
+        res.json({
+            success: true,
+            verificationId,
+            message: 'Income verification process started'
+        });
+    } catch (error) {
+        console.error('Error verifying income:', error);
+        res.status(500).json({ error: 'Failed to verify income' });
+    }
+};
+
+const handleIncomeWebhook = async (req: Request, res: Response) => {
+    try {
+        const { webhook_type, webhook_code, item_id, verification_id, error } = req.body;
+
+        if (webhook_type === 'INCOME_VERIFICATION') {
+            const user = await User.findOne({ 'incomeVerification.itemId': item_id });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            switch (webhook_code) {
+                case 'INCOME_VERIFICATION_COMPLETED':
+                    try {
+                        // Get income verification details
+                        const incomeRequest = {
+                            access_token: user.incomeVerification?.accessToken || ''
+                        } as any;
+
+                        const verificationResponse = await plaidClient.incomeVerificationCreate(incomeRequest);
+                        const verificationData = verificationResponse.data;
+
+                        // Calculate income from verification data
+                        // Note: The actual income calculation will depend on the structure of verificationData
+                        // This is a placeholder - you'll need to adjust based on the actual response structure
+                        const annualIncome = 0; // TODO: Calculate from verificationData
+                        const monthlyIncome = 0; // TODO: Calculate from verificationData
+
+                        const meetsRequirements =
+                            annualIncome >= INCOME_THRESHOLDS.MINIMUM_ANNUAL_INCOME &&
+                            monthlyIncome >= INCOME_THRESHOLDS.MINIMUM_MONTHLY_INCOME;
+
+                        // Update user verification status
+                        await User.findOneAndUpdate(
+                            { 'incomeVerification.itemId': item_id },
+                            {
+                                'incomeVerification.status': meetsRequirements ? 'completed' : 'failed',
+                                'incomeVerification.annualIncome': annualIncome,
+                                'incomeVerification.monthlyIncome': monthlyIncome,
+                                'incomeVerification.verifiedAt': new Date()
+                            }
+                        );
+
+                        // TODO: Implement notification system for verification status
+                    } catch (error) {
+                        console.error('Error processing income verification:', error);
+                        await User.findOneAndUpdate(
+                            { 'incomeVerification.itemId': item_id },
+                            { 'incomeVerification.status': 'failed' }
+                        );
+                    }
+                    break;
+
+                case 'INCOME_VERIFICATION_FAILED':
+                    await User.findOneAndUpdate(
+                        { 'incomeVerification.itemId': item_id },
+                        { 'incomeVerification.status': 'failed' }
+                    );
+                    console.error('Income verification failed:', error);
+                    break;
+            }
+        }
+
+        res.json({ received: true });
+    } catch (error) {
+        console.error('Income webhook error:', error);
+        res.status(500).json({ error: 'Webhook processing failed' });
     }
 };
 
@@ -85,6 +311,24 @@ const register = async (req: Request<{}, {}, RegisterRequest>, res: Response) =>
         const isValidSignature = await verifySignature(message, signature, address);
         if (!isValidSignature) {
             return res.status(401).json({ error: 'Invalid signature' });
+        }
+
+        // Check user and income verification status
+        const user = await User.findOne({ walletAddress: address.toLowerCase() });
+        if (!user) {
+            return res.status(400).json({ error: 'Wallet not verified' });
+        }
+
+        if (user.isRegistered) {
+            return res.status(400).json({ error: 'User already registered' });
+        }
+
+        // Check income verification status
+        if (!user.incomeVerification || user.incomeVerification.status !== 'completed') {
+            return res.status(400).json({ 
+                error: 'Income verification required',
+                status: user.incomeVerification?.status || 'pending'
+            });
         }
 
         // Create DAO contract instance
@@ -141,6 +385,15 @@ const register = async (req: Request<{}, {}, RegisterRequest>, res: Response) =>
                 throw new Error('Failed to mint LABRV token');
             }
 
+            // Update user registration status
+            await User.findOneAndUpdate(
+                { walletAddress: address.toLowerCase() },
+                {
+                    isRegistered: true,
+                    registrationDate: new Date()
+                }
+            );
+
             res.json({
                 success: true,
                 address,
@@ -161,5 +414,8 @@ const register = async (req: Request<{}, {}, RegisterRequest>, res: Response) =>
 
 export {
     verifyWallet,
-    register
-}; 
+    register,
+    initiateIncomeVerification,
+    verifyIncome,
+    handleIncomeWebhook
+};

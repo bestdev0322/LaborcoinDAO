@@ -1,10 +1,23 @@
-import express, { Router } from 'express';
-import { verifyWallet, register } from '../controllers/registrationController';
+import express from 'express';
+import {
+    verifyWallet,
+    register,
+    initiateIncomeVerification,
+    verifyIncome,
+    handleIncomeWebhook
+} from '../controllers/registrationController';
 
-const router: Router = express.Router();
+const router = express.Router();
 
-// Registration routes
+// Wallet verification route
 router.post('/verify-wallet', verifyWallet);
+
+// Income verification routes
+router.post('/income/initiate', initiateIncomeVerification);
+router.post('/income/verify', verifyIncome);
+router.post('/income-webhook', handleIncomeWebhook);
+
+// Registration route
 router.post('/register', register);
 
-export default router; 
+export default router;
